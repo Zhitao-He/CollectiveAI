@@ -1,5 +1,7 @@
 from openai import OpenAI
 
+# 以openai api形式部署模型
+
 openai_api_key = "EMPTY"  # 填 EMPTY
 openai_api_base = "http://localhost:18081/v1"  # 这里在本地 mac 上远程请求部署的推理服务，所以端口是 8989
 

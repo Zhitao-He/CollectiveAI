@@ -4,8 +4,9 @@ import os
 import io
 import pickle
 
-# 从文件加载词典
+# 打开android world环境收集的数据 
 
+# 从文件加载词典
 def _unzip_and_read_pickle(file_path):
   with open(file_path, 'rb') as f:
     compressed = f.read()

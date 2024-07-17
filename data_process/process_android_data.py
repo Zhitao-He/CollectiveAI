@@ -7,8 +7,8 @@ from tqdm import tqdm
 import math
 import csv
 import re
-# 收集成功与不成功的数据
-# 使用step reward而不是traj-level reward
+
+# 使用step reward 而不是 traj-level reward
 GUIDANCE = (
     'Here are some useful guidelines you need to follow:\n'
     'Action Related\n'
@@ -40,6 +40,17 @@ ANSWER_FORMAT = (
     'Your answer should look like:\n'
     'Reason: ...\nAction: {{"action_type":...}}\n\n'
 )
+
+def parse_reason_action_output(raw_reason_action_output: str,):
+  reason_result = re.search(
+      r'Reason:(.*)Score:', raw_reason_action_output, flags=re.DOTALL
+  )
+  reason = reason_result.group(1).strip() if reason_result else None
+  action_result = re.search(
+      r'Score:(.*)', raw_reason_action_output, flags=re.DOTALL
+  )
+  action = action_result.group(1).strip() if action_result else None
+  return reason, action
 
 def remove_UI_property(text):
     # 定义要去除的字段
@@ -73,6 +84,7 @@ def process_pkl_gz_files(folder_path):
     agent0_data = []
     agent1_data = []
     agent2_data = []
+    agent_total = []
     #failed_data = []
     task_completed = []
     episode_num = 0
@@ -95,19 +107,21 @@ def process_pkl_gz_files(folder_path):
                             is_successful = unzip_info[0]['is_successful']
                             #if is_successful == 1.0:
                             # 信息分类
-                            run_time = unzip_info[0]['run_time']
-                            agent_name = unzip_info[0]['agent_name']
-                            exception_info = unzip_info[0]['exception_info']
-                            finish_dtime = unzip_info[0]['finish_dtime']
-                            screen_config = unzip_info[0]['screen_config']
+                            #run_time = unzip_info[0]['run_time']
+                            #agent_name = unzip_info[0]['agent_name']
+                            #exception_info = unzip_info[0]['exception_info']
+                            #finish_dtime = unzip_info[0]['finish_dtime']
+                            #screen_config = unzip_info[0]['screen_config']
                             # useful info
                             goal = unzip_info[0]['goal']
                             task_template = unzip_info[0]['task_template']
                             #if task_template not in task_completed:
                             #    task_completed.append(task_template)
                             episode_length = unzip_info[0]['episode_length']
-                            seed = unzip_info[0]['seed']
+                            episode_num += episode_length
+                            #seed = unzip_info[0]['seed']
                             # details of episode
+                            print('Now:', file)
                             episode_data = unzip_info[0]['episode_data']
                             # before_screenshot = episode_data['before_screenshot']
                             # after_screenshot = episode_data['after_screenshot']
@@ -124,15 +138,16 @@ def process_pkl_gz_files(folder_path):
                             summary = episode_data['summary']
                             summary_raw_response = episode_data['summary_raw_response']
                             action_raw_response = episode_data['action_raw_response']
+                            agent_step_scores = episode_data['agent_step_scores']
                             #summary_prompt = episode_data['summary_prompt']
-                            
+
                             # 训练数据
                             #if is_successful == 1.0:
                             
                             current_task += 1
-                            if task_template not in task_completed:
+                            if is_successful and (task_template not in task_completed):
                                 task_completed.append(task_template)
-                            episode_num += episode_length
+                            #episode_num += episode_length
                             #agent_list = [{} for _ in range(3)]
                             #print('------len action_prompt:', len(action_prompt))
                             if is_successful:
@@ -173,42 +188,61 @@ def process_pkl_gz_files(folder_path):
                                         agent_dict['response'] = action_outputs[len(action_outputs)-1]
                                         #print(f"index {index}, response {agent_dict['response']}]")
                                         #print('\n')
-                                    if is_successful == 1.0:
-                                        agent_dict['rating'] = is_successful
-                                    else:
-                                        agent_dict['rating'] = 0
+                                    
+                                    # 处理scores
+                                    current_eval = agent_step_scores[idx]
+                                    score_reason, scores = parse_reason_action_output(current_eval)
 
+                                    json_start = scores.find('{')
+                                    json_end = scores.rfind('}') + 1
+                                    json_string = scores[json_start:json_end]
+
+                                    #print('---scores:', json_string)
+                                    score_dict = json.loads(json_string)
+
+                                    # if is_successful == 1.0:
+                                    #     agent_dict['rating'] = is_successful
+                                    # else:
+                                    #     agent_dict['rating'] = 0
 
                                     if index == 0:
-                                        agent0_data.append(agent_dict)
+                                        agent_dict['rating'] = score_dict['agent_0']
+                                        if agent_dict['rating'] >= 0.7:
+                                            agent0_data.append(agent_dict)
                                         #print(f'---agent {index}, action: {agent_dict["response"]}')
                                             
                                     if index == 1:
-                                        agent1_data.append(agent_dict)
+                                        agent_dict['rating'] = score_dict['agent_1']
+                                        if agent_dict['rating'] >= 0.7:
+                                            agent1_data.append(agent_dict)
                                         #print(f'---agent {index}, action: {agent_dict["response"]}')
 
                                     if index == 2:
-                                        agent2_data.append(agent_dict)
+                                        agent_dict['rating'] = score_dict['agent_2']
+                                        if agent_dict['rating'] >= 0.7:
+                                            agent2_data.append(agent_dict)
+                                            
                                         #print(f'---agent {index}, action: {agent_dict["response"]}')                
                             else:
                                 continue 
                         except Exception as e:
-                            print(f"Error loading {file}: {e}")
+                           print(f"Error loading {file}: {e}")
             print(f'Now dir: {dir}, num of completed: {s}, num of failed: {f}') 
             
             # 写入任务信息到 JSON 文件
             # filename_agent0 = 'android_world/training_data/android_agent0.tsv'
             # filename_agent1 = 'android_world/training_data/android_agent1.tsv'
             # filename_agent2 = 'android_world/training_data/android_agent2.tsv'
-            filename_agent0 = 'android_world/reward_model_train/UI_android_agent0.tsv'
-            filename_agent1 = 'android_world/reward_model_train/UI_android_agent1.tsv'
-            filename_agent2 = 'android_world/reward_model_train/UI_android_agent2.tsv'
+            filename_agent0 = 'android_world/runs_step_reward_sft/agent0.tsv'
+            filename_agent1 = 'android_world/runs_step_reward_sft/agent1.tsv'
+            filename_agent2 = 'android_world/runs_step_reward_sft/agent2.tsv'
+            filename_agent_total = 'android_world/runs_step_reward_sft/agent_total.tsv'
             # filename_agent0 = 'android_world/training_data/UI_Gui_android_agent0.tsv'
             # filename_agent1 = 'android_world/training_data/UI_Gui_android_agent1.tsv'
             # filename_agent2 = 'android_world/training_data/UI_Gui_android_agent2.tsv'
             filenames = [filename_agent0, filename_agent1, filename_agent2]
             agent_data = [agent0_data, agent1_data, agent2_data]
-            print('len agent_data:', len(agent0_data))
+            print('len total episode:', episode_num)
             for data, filename in zip(agent_data, filenames):
                 print("===len(data):", len(data))
                 with open(filename, mode='w', newline='', encoding='utf-8') as file:
@@ -216,18 +250,30 @@ def process_pkl_gz_files(folder_path):
                     writer.writeheader()
                     for entry in data:
                         writer.writerow(entry)
-                
+
                 # 读取数据从文件，确认写入数据的完整性
                 with open(filename, mode='r', encoding='utf-8') as file:
                     reader = csv.DictReader(file, delimiter='\t')
                     rows = list(reader)
                     print(f"=== len(rows) after writing to {filename}: {len(rows)}")
-    print('---episode num:', episode_num)
-    print('---query_len:', query_len)
+
+            agent_total = agent0_data+agent1_data+agent2_data
+            with open(filename_agent_total, mode='w', newline='', encoding='utf-8') as file_total:
+                writer_total = csv.DictWriter(file_total, fieldnames=["goal", "task_template", "query", "response", "rating"], delimiter='\t')
+                writer_total.writeheader()
+                for entry in agent_total:
+                    writer_total.writerow(entry)
+                    
+            with open(filename_agent_total, mode='r', encoding='utf-8') as file_total:
+                reader_total = csv.DictReader(file_total, delimiter='\t')
+                rows_total = list(reader_total)
+                print(f"=== len(rows) after writing to {filename_agent_total}: {len(rows_total)}")
+    #print('---episode num:', episode_num)
+    #print('---query_len:', query_len)
     return task_completed
 
 # 指定文件夹路径
-folder_path = 'android_world/runs'
+folder_path = 'android_world/runs_step_reward'
 #folder_path = 'android_world/runs/run_20240628T144329'
 task_completed = process_pkl_gz_files(folder_path)
 #print('task_success:', task_completed)

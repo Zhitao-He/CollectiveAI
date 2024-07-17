@@ -6,6 +6,7 @@ import json
 from tqdm import tqdm
 import math
 
+# 统计完成的任务
 
 def _unzip_and_read_pickle(file_path: str):
     with open(file_path, 'rb') as f:
