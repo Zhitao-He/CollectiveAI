@@ -5,28 +5,15 @@ import io
 import pickle
 
 # 从文件加载词典
-""" with open('android_world/android_world/history_record.pkl', 'rb') as f:
-    loaded_dict = pickle.load(f)
-
-goal = 'Create a new contact for Amina da Silva. Their number is +16270847118.'
-print(loaded_dict[goal][1]['summary']) """
 
 def _unzip_and_read_pickle(file_path):
-  """Reads a gzipped pickle file using 'with open', unzips, and unpickles it.
-
-  Args:
-      file_path: The path to the gzipped pickle file.
-
-  Returns:
-      The original Python object that was pickled and gzipped.
-  """
   with open(file_path, 'rb') as f:
     compressed = f.read()
 
   with gzip.open(io.BytesIO(compressed), 'rb') as f_in:
     return pickle.load(f_in)
 
-file_name = 'android_world/runs_step_reward/run_20240714T210957/AudioRecorderRecordAudioWithFileName.pkl.gz'
+file_name = 'runs_step_reward/run_20240715T164115/AudioRecorderRecordAudio.pkl.gz'
 
 unzip_info = _unzip_and_read_pickle(file_name)
 #info = unzip_info[0]['task_template']
@@ -52,14 +39,15 @@ info_list = ['goal', 'task_template','is_successful','run_time','agent_name','ep
 #    print("---{}:{}\n".format(info_name, unzip_info[0][info_name]))
 
 print("---{}:{}\n".format('episode_data', len(unzip_info[0]['episode_data'])))
+print("---{}:{}\n".format('agent_step_scores', len(unzip_info[0]['episode_data']['agent_step_scores'])))
 
 # print(type(episode_data))
 print(episode_data.keys())
 # print('\n')
-print(episode_data['action_prompt'][5])
-print('---action_output_list', episode_data['action_output_list'][5])
-print('----action_adapt', episode_data['action_adapt'][5])
-print('----action_score_prompt', episode_data['step_scores_prompt'][5])
+# print(episode_data['action_prompt'][5])
+# print('---action_output_list', episode_data['action_output_list'][5])
+# print('----action_adapt', episode_data['action_adapt'][5])
+# print('----action_score_prompt', episode_data['step_scores_prompt'][5])
 
 for idx, scores in enumerate(episode_data['agent_step_scores']):
   print("=======Step{}: {}\n======".format(idx, scores))

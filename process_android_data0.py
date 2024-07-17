@@ -8,6 +8,7 @@ import math
 import csv
 import re
 # 收集成功与不成功的数据
+# 使用step reward而不是traj-level reward
 GUIDANCE = (
     'Here are some useful guidelines you need to follow:\n'
     'Action Related\n'
@@ -150,7 +151,7 @@ def process_pkl_gz_files(folder_path):
                                     agent_dict['task_template'] = task_template
                                     
                                     # 直接使用
-                                    # agent_dict['query'] = step_prompt + 'Your Answer:\n'
+                                    agent_dict['query'] = step_prompt + 'Your Answer:\n'
 
                                     # 去除UI多余的属性
                                     # query = step_prompt
@@ -158,11 +159,11 @@ def process_pkl_gz_files(folder_path):
                                     # agent_dict['query'] = query
                                     
                                     # 去除一些guidelines
-                                    query = step_prompt
-                                    query = remove_UI_property(query)
-                                    query_processed = remove_guidelines(query) 
-                                    agent_dict['query'] = query_processed + ANSWER_FORMAT + GUIDANCE
-                                    #query_len.append((len(query), len(query_processed)))
+                                    # query = step_prompt
+                                    # query = remove_UI_property(query)
+                                    # query_processed = remove_guidelines(query) 
+                                    # agent_dict['query'] = query_processed + ANSWER_FORMAT + GUIDANCE
+                                    # #query_len.append((len(query), len(query_processed)))
 
                                     if index < len(action_outputs): 
                                         agent_dict['response'] = action_outputs[index]
